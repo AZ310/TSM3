@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recent Bookings</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div> <!--Content Wrapper-->
+        <div class="flex justify-between px-3 items-center border-b-2 border-gray-300"> <!-- Navigation Bar -->
+            <div id="logo" class="flex items-center cursor-pointer">
+                <img class="w-14" src="img/pngtree-circle-travel-plane-logo-template-in-blacn-and-white-image_55579.jpg"
+                    alt="website-logo">
+                <span class="font-bold px-0">FlyBase</span>
+            </div>
+            <div class="ml-24">
+                <h1 class="font-bold ">
+                    Recent Bookings
+                </h1>
+            </div>
+            <nav>
+                <a href="login.html"
+                    class="bg-white text-gray-800 border-2 rounded-full border-gray-800 p-2 transition ease-out hover:scale-105 hover:bg-gray-800 hover:text-white">Sign
+                    in</a>
+                <a href="signup.html"
+                    class="bg-white text-gray-800 border-2 rounded-full border-gray-800 p-2 transition ease-out hover:scale-105 hover:bg-gray-800 hover:text-white">Sign
+                    up</a>
+            </nav>
+        </div>
+
+        <main class="flex flex-col justify-center items-center mx-auto w-4/5">
+            <!--Tickets Wrapper-->
+            <div id="tickets"
+                class="w-11/12 border border-gray-300 mt-6 mb-6 rounded-3xl bg-gray-50 flex flex-col justify-start items-center h-svh overflow-y-scroll">
+                <!-- <div id="tWrapper" style="width: 96%;" class="border border-gray-400 mt-4 rounded-2xl flex bg-white">
+                    <div class="pl-2 border border-gray-600 w-32 m-1 rounded-xl flex flex-col justify-around">
+                        <div>
+                            ID: 1
+                        </div>
+                        <div>
+                            Flight ID: 1
+                        </div>
+                        <div>
+                            Sex: M
+                        </div>
+                    </div>
+                    <div
+                        class="pl-2 border border-gray-600 w-52 m-1 rounded-xl flex flex-col justify-center items-center">
+                        <div class="text-xl font-bold">
+                            DAMMAM
+                        </div>
+                    </div>
+
+                    <div class="pl-2 border border-gray-600 w-52 m-1 rounded-xl flex flex-col justify-around ">
+                        <div>
+                            First Name: Ali
+                        </div>
+                        <div>
+                            Last Name: Ma
+                        </div>
+                        <div>
+                            Phone: 8759872
+                        </div>
+                        <div>
+                            Age:
+                        </div>
+                    </div>
+
+                    <div class="pl-2 border border-gray-600 w-52 m-1 rounded-xl flex flex-col justify-around">
+                        <div>
+                            Class: Business
+                        </div>
+                        <div>
+                            Wifi?
+                        </div>
+                        <div>
+                            Departure: 09/22/2024
+                        </div>
+                        <div>
+                            Return: 03/22/2025
+                        </div>
+
+                    </div> -->
+
+
+                    <div class="flex flex-col justify-end pl-2 rounded-xl m-1 w-56">
+                        <div class="flex justify-end p-1">
+                            <button
+                                class="bg-white text-gray-800 border-2 rounded-xl border-gray-800 p-1 transition ease-out hover:scale-105 hover:bg-gray-800 hover:text-white w-16 mr-2">Edit</button>
+                            <button
+                                class="removeBtn bg-white text-gray-800 border-2 rounded-xl border-gray-800 p-1 transition ease-out hover:scale-105 hover:bg-gray-800 hover:text-white w-20">Remove</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tWrapper" style="width: 96%;" class="border border-gray-400 mt-4 rounded-2xl flex bg-white">
+                    <div class="pl-2 border border-gray-600 w-32 m-1 rounded-xl flex flex-col justify-around">
+                        <div>
+                            ID: 2
+                        </div>
+                        <div>
+                            Flight ID: 2
+                        </div>
+                        <div>
+                            Sex: F
+                        </div>
+                    </div>
+                    <div
+                        class="pl-2 border border-gray-600 w-52 m-1 rounded-xl flex flex-col justify-center items-center">
+                        <div class="text-xl font-bold">
+                            Riyadh
+                        </div>
+                    </div>
+
+                    <div class="pl-2 border border-gray-600 w-52 m-1 rounded-xl flex flex-col justify-around">
+                        <div>
+                            First Name: Salma
+                        </div>
+                        <div>
+                            Last Name: Qahtani
+                        </div>
+                        <div>
+                            Phone: 6676656
+                        </div>
+                        <div>
+                            Age:
+                        </div>
+                    </div>
+
+                    <div class="pl-2 border border-gray-600 w-52 m-1 rounded-xl flex flex-col justify-around">
+                        <div>
+                            Class: Standard
+                        </div>
+                        <div>
+                            Wifi?
+                        </div>
+                        <div>
+                            Departure: 06/16/2024
+                        </div>
+                        <div>
+                            Return: 01/22/2025
+                        </div>
+                    </div>
+
+
+                    <div class="flex flex-col justify-end pl-2 rounded-xl m-1 w-56">
+                        <div class="flex justify-end p-1">
+                            <button
+                                class="bg-white text-gray-800 border-2 rounded-xl border-gray-800 p-1 transition ease-out hover:scale-105 hover:bg-gray-800 hover:text-white w-16 mr-2">Edit</button>
+                            <button
+                                class="removeBtn bg-white text-gray-800 border-2 rounded-xl border-gray-800 p-1 transition ease-out hover:scale-105 hover:bg-gray-800 hover:text-white w-20">Remove</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="tWrapper" style="width: 96%;" class="border border-gray-400 mt-4 rounded-2xl flex bg-white">
+                    <div class="pl-2 border border-gray-600 w-32 m-1 rounded-xl flex flex-col justify-around ">
+                        <div>
+                            ID: 3
+                        </div>
+                        <div>
+                            Flight ID: 3
+                        </div>
+                        <div>
+                            Sex: M
+                        </div>
+                    </div>
+                    <div
+                        class="pl-2 border border-gray-600 w-52 m-1 rounded-xl flex flex-col justify-center items-center">
+                        <div class="text-xl font-bold">
+                            Madinah
+                        </div>
+                    </div>
+
+                    <div class="pl-2 border border-gray-600 w-52 m-1 rounded-xl flex flex-col justify-around">
+                        <div>
+                            First Name: Abduallah
+                        </div>
+                        <div>
+                            Last Name: Solami
+                        </div>
+                        <div>
+                            Phone: 5454665
+                        </div>
+                        <div>
+                            Age:
+                        </div>
+                    </div>
+
+                    <div class="pl-2 border border-gray-600 w-52 m-1 rounded-xl flex flex-col justify-around">
+                        <div>
+                            Class: Business
+                        </div>
+                        <div>
+                            Wifi?
+                        </div>
+                        <div>
+                            Departure: 12/22/2024
+                        </div>
+                        <div>
+                            Return: 02/22/2025
+                        </div>
+
+                    </div>
+
+
+                    <div class="flex flex-col justify-end pl-2 rounded-xl m-1 w-56">
+                        <div class="flex justify-end p-1">
+                            <button
+                                class="bg-white text-gray-800 border-2 rounded-xl border-gray-800 p-1 transition ease-out hover:scale-105 hover:bg-gray-800 hover:text-white w-16 mr-2">Edit</button>
+                            <button
+                                class="removeBtn bg-white text-gray-800 border-2 rounded-xl border-gray-800 p-1 transition ease-out hover:scale-105 hover:bg-gray-800 hover:text-white w-20">Remove</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+
+</html>
