@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import supabase from '../config/supabaseClient';
 import { useAuth } from './AuthContext';
@@ -6,39 +6,20 @@ import { useAuth } from './AuthContext';
 const HomeComponent = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searchError, setSearchError] = useState('');
-  const { isLoggedIn } = useAuth(); // Use the useAuth hook to get isLoggedIn
+
+  const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const checkUserSession = async () => {
-      try {
-        const user = supabase.auth.user();
-        setSearchResults(user !== null); // Update setSearchResults instead of setIsLoggedIn
-      } catch (error) {
-        console.error('Error checking user session:', error.message);
-      }
-    };
-
-    checkUserSession();
-  }, []); // Remove the extra semicolon at the end of the useEffect
 
   const handleSearchFlights = async (e) => {
     e.preventDefault();
-
     const formData = new FormData(e.target);
-    const leavingFrom = formData.get('Leaving_from');
-    const target = formData.get('target');
-    const departureDate = formData.get('leaving_date');
-    const returnDate = formData.get('return_date');
+    const searchQuery = formData.get('search');
 
     try {
       const { data, error } = await supabase
         .from('flight')
         .select('*')
-        .eq('leaving_from', leavingFrom)
-        .eq('target', target)
-        .eq('leaving_date', departureDate)
-        .eq('return_date', returnDate);
+        .ilike('target', `%${searchQuery}%`);
 
       if (error) {
         throw error;
@@ -46,25 +27,17 @@ const HomeComponent = () => {
 
       if (data) {
         setSearchResults(data);
-        setSearchError(''); // Clear search error if successful
+        setSearchError('');
       }
     } catch (error) {
       console.error('Error searching flights:', error.message);
-      setSearchError('Please fill in the required fields correctly');
-    }
-  };
-
-  const handleBookFlight = () => {
-    if (isLoggedIn) {
-      navigate('/payment');
-    } else {
-      navigate('/login');
+      setSearchError('Please enter a valid destination');
     }
   };
 
   return (
     <div>
-      {/* Content Wrapper */}
+      {/* Header */}
       <div className="flex justify-between px-3 items-center border-b-2 border-gray-300">
         <Link to="/" className="flex items-center cursor-pointer">
           <img className="w-6" src="img/train.jpg" alt="website-logo" />
@@ -83,65 +56,82 @@ const HomeComponent = () => {
       </div>
 
       {/* Main Content */}
-      <main className="py-8 flex flex-col justify-center items-center text-center mx-auto w-4/5">
-        <div className="flex flex-col justify-start items-center">
-          <div>
-            <img className="rounded-3xl " src="img/Train background.webp" alt="" />
-          </div>
-          <div className="absolute left-52 top-40">
-            <h1 className="font-bold text-6xl object-left text-gray-800 mb-2">Travel Anywhere </h1>
-            <h1 className="text-black text-xl">Anytime!</h1>
-          </div>
-          {/* Search Form */}
-          <form onSubmit={handleSearchFlights} className="bg-white w-11/12 rounded-3xl px-6 py-4 mt-4 border border-gray-300 overflow-hidden">
-            <div className="text-left flex">
-              <div className="mr-4">
-                <p className="text-gray">Where from?</p>
-                <input type="text" placeholder="Leaving from" name="Leaving_from" className="border border-gray-300 rounded-md p-2" />
-              </div>
-              <div>
-                <p className="text-gray">Where to?</p>
-                <input type="text" placeholder="Target" name="target" className="border border-gray-300 rounded-md p-2" />
-              </div>
-              <div className="ml-4">
-                <p className="text-gray">Departure?</p>
-                <input type="date" name="leaving_date" className="h-10 border border-gray-300 rounded p-2" />
-              </div>
-              <div className="ml-4"> 
-                <p className="text-gray">Return?</p> 
-                <input type="date" name="return_date" className="h-10 border border-gray-300 rounded p-2" />
-              </div>
-              <div className="flex justify-center items-center mt-6">
-                <button type="submit" className="text-white bg-gray-600 h-10 rounded-lg ml-6 w-36 shadow-md">Search</button>
+      <main className="relative">
+        <div className="w-[1700px] h-[700px] relative overflow-hidden"> 
+          <div className="container mx-auto px-4 h-full relative">
+            <div className="w-[80%] h-full mx-auto relative">
+              <img 
+                src="img/Train background.webp" 
+                alt="High-speed train" 
+                className="w-full h-full object-cover rounded-lg"
+                style={{
+                  objectPosition: 'center 50%',
+                  maxWidth: '1200px',
+                  margin: '0 auto'
+                }}
+              />
+              <div className="absolute inset-0 flex flex-col justify-center">
+                <h1 className="text-6xl font-bold text-[#D9E3F0] mb-4 ml-8">Travel Anywhere</h1>
+                <p className="text-white text-xl mb-8 ml-8 px-2">Anytime!</p>
+                
+                {/* Search Form */}
+                <div className="px-8">
+                  <form onSubmit={handleSearchFlights} className="max-w-2xl">
+                    {/* Reduced padding for the input field */}
+                    <div className="flex bg-white rounded-lg overflow-hidden shadow-lg">
+                      <input 
+                        type="text" 
+                        name="search" 
+                        placeholder="Where do you want to go?" 
+                        className="flex-grow px-4 py-2 text-lg focus:outline-none" 
+                      />
+                      {/* Adjusted button padding */}
+                      <button 
+                        type="submit" 
+                        className="bg-[#0057B8] text-white px-6 py-2 text-lg font-semibold hover:bg-[#004494] transition-colors"
+                      >
+                        Find tickets
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
             </div>
-          </form>
+          </div>
+        </div>
 
-          {/* Display Search Results */}
-          {searchResults.length > 0 && (
-            <div className="w-11/12 border border-gray-300 mt-6 rounded-3xl p-3">
+        {/* Search Results */}
+        {searchResults.length > 0 && (
+          <div className="container mx-auto mt-8 px-4">
+            <div className="bg-white rounded-lg shadow-lg p-6">
               {searchResults.map((flight) => (
-                <div key={flight.id} className="p-8 flex border border-gray-400 rounded">
-                  <p>Leaving from: {flight.leaving_from}</p>
-                  <p>Target: {flight.target}</p>
-                  <p>Departure Date: {flight.leaving_date}</p>
-                  <p>Departure Time: {flight.leaving_time}</p>
-                  <p>Return Date: {flight.return_date}</p>
-                  <p>Return Time: {flight.return_time}</p>
-                  <button className='text-white bg-gray-600 w-32 mt-2 rounded' onClick={handleBookFlight}>{isLoggedIn ? 'Book Flight' : 'Login to Book'}</button>
-                  {/* Add more flight details as needed */}
+                <div key={flight.id} className="border-b border-gray-200 py-4 last:border-b-0">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-semibold">{flight.target}</p>
+                      <p className="text-gray-600">From {flight.leaving_from}</p>
+                    </div>
+                    <button 
+                      onClick={() => isLoggedIn ? navigate('/payment') : navigate('/login')}
+                      className="bg-[#0057B8] text-white px-6 py-2 rounded hover:bg-[#004494] transition-colors"
+                    >
+                      {isLoggedIn ? 'Book Now' : 'Login to Book'}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Display search error if exists */}
-          {searchError && (
-            <div className="w-11/12 border border-red-500 mt-6 rounded-3xl p-4 bg-red-100 text-red-500">
+        {/* Error Message */}
+        {searchError && (
+          <div className="container mx-auto mt-4 px-4">
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
               {searchError}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </main>
     </div>
   );
