@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import supabase from '../config/supabaseClient';
-import { useAuth } from './AuthContext';
+import { useAuth } from './AuthContext'; // Import useAuth hook
 
 const HomeComponent = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searchError, setSearchError] = useState('');
 
-  const { isLoggedIn } = useAuth();
+  const { user, logout } = useAuth(); // Get user and logout function from AuthContext
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,13 +29,9 @@ const HomeComponent = () => {
       return;
     }
 
-    
     try {
-      console.log('Search Query:', searchQuery);
-      console.log("Table", await supabase .from('schedules').select('*'));
-
       const { data, error } = await supabase
-        .from('schedules') // Ensure the table name matches your database
+        .from('schedules')
         .select(`
           schedule_id,
           train_id,
@@ -46,12 +42,9 @@ const HomeComponent = () => {
         `)
         .ilike('destination_station', `%${searchQuery}%`); // Case-insensitive search
 
-      console.log('Database response:', { data, error });
-
       if (error) throw error;
 
       if (data && data.length > 0) {
-        console.log('Found matches:', data);
         setSearchResults(data);
         setSearchError('');
         navigate('/tickets', { state: { searchResults: data } });
@@ -64,9 +57,14 @@ const HomeComponent = () => {
     }
   };
 
+  const handleLogout = () => {
+    logout(); // Call logout from AuthContext
+    supabase.auth.signOut(); // Sign out the user from Supabase
+    navigate('/login'); // Redirect user to the login page after logout
+  };
+
   return (
     <div>
-      {/* Header */}
       <div className="flex justify-between px-3 items-center border-b-2 border-gray-300">
         <Link to="/" className="flex items-center cursor-pointer">
           <img className="w-6" src="img/train.jpg" alt="website-logo" />
@@ -84,22 +82,35 @@ const HomeComponent = () => {
               Recent Tickets
             </a>
           </div>
-          <a
-            href="login"
-            className="bg-white text-gray-800 border-2 rounded-full border-gray-800 p-2 transition ease-out hover:scale-105 hover:bg-gray-800 hover:text-white"
-          >
-            Sign in
-          </a>
-          <a
-            href="signup"
-            className="bg-white text-gray-800 border-2 rounded-full border-gray-800 p-2 transition ease-out hover:scale-105 hover:bg-gray-800 hover:text-white"
-          >
-            Sign up
-          </a>
+          {!user ? (
+            <>
+              <a
+                href="login"
+                className="bg-white text-gray-800 border-2 rounded-full border-gray-800 p-2 transition ease-out hover:scale-105 hover:bg-gray-800 hover:text-white"
+              >
+                Sign in
+              </a>
+              <a
+                href="signup"
+                className="bg-white text-gray-800 border-2 rounded-full border-gray-800 p-2 transition ease-out hover:scale-105 hover:bg-gray-800 hover:text-white"
+              >
+                Sign up
+              </a>
+            </>
+          ) : (
+            <div>
+              <p>Welcome, {user.email}</p>
+              <button
+                onClick={handleLogout}
+                className="bg-red-500 text-white px-4 py-2 rounded"
+              >
+                Log Out
+              </button>
+            </div>
+          )}
         </nav>
       </div>
 
-      {/* Main Content */}
       <main className="relative">
         <div className="w-[1700px] h-[700px] relative overflow-hidden">
           <div className="container mx-auto px-4 h-full relative">
@@ -122,7 +133,6 @@ const HomeComponent = () => {
                   Anytime!
                 </p>
 
-                {/* Search Form */}
                 <div className="px-8">
                   <form onSubmit={handleSearchFlights} className="max-w-2xl">
                     <div className="flex bg-white rounded-lg overflow-hidden shadow-lg">
@@ -145,16 +155,15 @@ const HomeComponent = () => {
             </div>
           </div>
         </div>
-
-        {/* Error Message */}
-        {searchError && (
-          <div className="fixed bottom-4 right-4 max-w-md animate-fade-in">
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded shadow-lg">
-              {searchError}
-            </div>
-          </div>
-        )}
       </main>
+
+      {searchError && (
+        <div className="fixed bottom-4 right-4 max-w-md animate-fade-in">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded shadow-lg">
+            {searchError}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

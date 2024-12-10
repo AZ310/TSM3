@@ -10,7 +10,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    setUser(null);
+    setUser(null); // Log out by clearing the user data
   };
 
   return (
