@@ -7,6 +7,7 @@ import Signup from "./pages/signup";
 import TicketList from "./pages/recent";
 import AddTicketAdmin from "./pages/addTicket";
 import PaymentPage from "./pages/payment";
+import TicketsPage from "./pages/Tickets";
 import { AuthProvider } from './pages/AuthContext';
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
           <Route path="/recent" element={<TicketList />} />
           <Route path="/addticketadmin" element={<AddTicketAdmin />} />
           <Route path="/paymentpage" element={<PaymentPage />} />
+          <Route path="/tickets" element={<TicketsPage />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
