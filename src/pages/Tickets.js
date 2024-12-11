@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Clock, Users, Train, ArrowRight, CreditCard, Loader } from 'lucide-react';
+import { Clock, Users, Train, ArrowRight, CreditCard, Loader, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/layout/Navbar';
+import supabase from '../config/supabaseClient';
 
 const Tickets = () => {
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [selectedSeats, setSelectedSeats] = useState([]);
+  const [occupiedSeats, setOccupiedSeats] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [showSeatMap, setShowSeatMap] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState(null);
-  const [selectedSeats, setSelectedSeats] = useState([]);
-  const [showSeatMap, setShowSeatMap] = useState(false);
 
   // Get search results and params from location state
   const searchResults = location.state?.searchResults || [];
@@ -23,54 +26,211 @@ const Tickets = () => {
     }
   }, [location.state, navigate]);
 
-  const handleSelectTicket = (ticket) => {
-    setSelectedTicket(ticket);
-    setShowSeatMap(true);
-    setSelectedSeats([]);
+  useEffect(() => {
+    if (selectedTicket) {
+      fetchOccupiedSeats(selectedTicket.schedule_id);
+    }
+  }, [selectedTicket]);
+
+  const fetchOccupiedSeats = async (scheduleId) => {
+    try {
+      const { data, error } = await supabase
+        .from('seats')
+        .select('seat_number')
+        .eq('schedule_id', scheduleId)
+        .eq('is_occupied', true);
+
+      if (error) throw error;
+      setOccupiedSeats(data.map(seat => seat.seat_number));
+    } catch (error) {
+      console.error('Error fetching seats:', error);
+      setError('Failed to load seat availability');
+    }
   };
 
-  const handleSeatSelect = (seatNumber) => {
+  const addToWaitlist = async () => {
+    if (!user) {
+      navigate('/login', { 
+        state: { 
+          from: location.pathname,
+          searchResults,
+          selectedTicket 
+        } 
+      });
+      return;
+    }
+
+    try {
+      // Check if already on waitlist
+      const { data: existingWaitlist } = await supabase
+        .from('waitlist')
+        .select('*')
+        .eq('schedule_id', selectedTicket.schedule_id)
+        .eq('user_id', user.id)
+        .eq('status', 'waiting')
+        .single();
+
+      if (existingWaitlist) {
+        alert('You are already on the waitlist for this train.');
+        return;
+      }
+
+      // Get current waitlist position
+      const { data: currentWaitlist } = await supabase
+        .from('waitlist')
+        .select('position')
+        .eq('schedule_id', selectedTicket.schedule_id)
+        .eq('status', 'waiting')
+        .order('position', { ascending: false })
+        .limit(1);
+
+      const nextPosition = currentWaitlist && currentWaitlist.length > 0 
+        ? currentWaitlist[0].position + 1 
+        : 1;
+
+      // Add to waitlist
+      const { error: waitlistError } = await supabase
+        .from('waitlist')
+        .insert({
+          schedule_id: selectedTicket.schedule_id,
+          user_id: user.id,
+          position: nextPosition,
+          status: 'waiting'
+        });
+
+      if (waitlistError) throw waitlistError;
+
+      alert('You have been added to the waitlist. You will be notified when a seat becomes available.');
+      navigate('/profile');
+    } catch (error) {
+      console.error('Waitlist error:', error);
+      setError('Failed to add to waitlist');
+    }
+  };
+
+  const handleSelectTicket = async (ticket) => {
+    setSelectedTicket(ticket);
+    setSelectedSeats([]);
+    setShowSeatMap(true);
+    await fetchOccupiedSeats(ticket.schedule_id);
+  };
+
+  const handleSeatSelect = async (seatNumber) => {
+    if (occupiedSeats.includes(seatNumber.toString())) {
+      return;
+    }
+
+    // Check if all seats are taken
+    if (occupiedSeats.length >= 32) { // Assuming 32 seats per train
+      const confirmWaitlist = window.confirm(
+        'All seats are currently booked. Would you like to join the waitlist?'
+      );
+      if (confirmWaitlist) {
+        await addToWaitlist();
+      }
+      return;
+    }
+
     if (selectedSeats.includes(seatNumber)) {
       setSelectedSeats(selectedSeats.filter(seat => seat !== seatNumber));
     } else if (selectedSeats.length < parseInt(searchParams.passengers || 1)) {
-      setSelectedSeats([...selectedSeats, seatNumber]);
+      setSelectedSeats([...selectedSeats, seatNumber].sort((a, b) => a - b));
     }
   };
 
   const calculateTotal = (ticket, seatCount) => {
-    const basePrice = 100;
+    const basePrice = 100; // Base price per seat
     return basePrice * seatCount;
   };
 
   const handleProceedToPayment = async () => {
-    if (selectedSeats.length === parseInt(searchParams.passengers || 1)) {
-      setLoading(true);
-      try {
-        if (!user) {
-          navigate('/login', {
-            state: {
-              from: '/tickets',
-              searchResults,
-              selectedTicket,
-              seats: selectedSeats,
-              searchParams
-            }
-          });
-          return;
+    if (!user) {
+      navigate('/login', {
+        state: {
+          from: location.pathname,
+          searchResults,
+          ticket: selectedTicket,
+          seats: selectedSeats,
+          searchParams
         }
-
-        navigate('/paymentpage', {
-          state: {
-            ticket: selectedTicket,
-            seats: selectedSeats,
-            totalAmount: calculateTotal(selectedTicket, selectedSeats.length),
-            searchParams
-          }
-        });
-      } finally {
-        setLoading(false);
-      }
+      });
+      return;
     }
+
+    setLoading(true);
+    try {
+      // Check if seats are still available
+      const { data: currentSeats } = await supabase
+        .from('seats')
+        .select('seat_number')
+        .eq('schedule_id', selectedTicket.schedule_id)
+        .eq('is_occupied', true);
+
+      const selectedSeatsOccupied = selectedSeats.some(seat => 
+        currentSeats.some(occupied => occupied.seat_number === seat.toString())
+      );
+
+      if (selectedSeatsOccupied) {
+        throw new Error('Some selected seats have been taken. Please select different seats.');
+      }
+
+      // Reserve seats in the database
+      const seatPromises = selectedSeats.map(seatNumber => 
+        supabase.from('seats').insert({
+          schedule_id: selectedTicket.schedule_id,
+          seat_number: seatNumber.toString(),
+          passenger_id: user.id,
+          is_occupied: true,
+          booking_reference: `BK-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+        })
+      );
+
+      const results = await Promise.all(seatPromises);
+      const errors = results.filter(result => result.error);
+
+      if (errors.length > 0) {
+        throw new Error('Failed to reserve one or more seats');
+      }
+
+      navigate('/paymentpage', {
+        state: {
+          ticket: selectedTicket,
+          seats: selectedSeats,
+          totalAmount: calculateTotal(selectedTicket, selectedSeats.length),
+          searchParams
+        }
+      });
+    } catch (error) {
+      console.error('Error reserving seats:', error);
+      setError(error.message || 'Failed to reserve seats. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const SeatButton = ({ number }) => {
+    const isSelected = selectedSeats.includes(number);
+    const isOccupied = occupiedSeats.includes(number.toString());
+    
+    return (
+      <button
+        onClick={() => handleSeatSelect(number)}
+        disabled={isOccupied || (!isSelected && selectedSeats.length >= parseInt(searchParams.passengers || 1))}
+        className={`p-4 text-center rounded-lg transition-colors ${
+          isSelected
+            ? 'bg-blue-600 text-white'
+            : isOccupied
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-gray-50 hover:bg-gray-100 text-gray-800'
+        } ${
+          (!isSelected && selectedSeats.length >= parseInt(searchParams.passengers || 1))
+            ? 'cursor-not-allowed'
+            : ''
+        }`}
+      >
+        {number}
+      </button>
+    );
   };
 
   if (!searchResults.length) {
@@ -116,6 +276,13 @@ const Tickets = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
+        {error && (
+          <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg flex items-center">
+            <AlertCircle className="w-5 h-5 mr-2" />
+            {error}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Tickets List */}
           <div className="lg:col-span-2">
@@ -173,43 +340,26 @@ const Tickets = () => {
           {showSeatMap && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 lg:sticky lg:top-4">
               <h2 className="text-lg font-semibold mb-4">Select Your Seats</h2>
+              
               <div className="grid grid-cols-4 gap-2 mb-6">
-                {[...Array(32)].map((_, index) => {
-                  const seatNumber = index + 1;
-                  const isSelected = selectedSeats.includes(seatNumber);
-                  const isDisabled = !isSelected && 
-                    selectedSeats.length >= parseInt(searchParams.passengers || 1);
-                  
-                  return (
-                    <button
-                      key={seatNumber}
-                      onClick={() => handleSeatSelect(seatNumber)}
-                      disabled={isDisabled}
-                      className={`p-2 text-center rounded ${
-                        isSelected 
-                          ? 'bg-blue-600 text-white' 
-                          : isDisabled 
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            : 'bg-gray-50 hover:bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {seatNumber}
-                    </button>
-                  );
-                })}
+                {Array.from({ length: 32 }, (_, i) => (
+                  <SeatButton key={i + 1} number={i + 1} />
+                ))}
               </div>
 
-              <div className="border-t pt-4">
-                <div className="flex justify-between mb-4">
-                  <span>Selected Seats:</span>
-                  <span>{selectedSeats.join(', ') || 'None'}</span>
+              <div className="mt-6 border-t pt-4">
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-600">Selected Seats:</span>
+                  <span className="font-medium">{selectedSeats.join(', ') || 'None'}</span>
                 </div>
+
                 <div className="flex justify-between mb-4">
-                  <span>Total Amount:</span>
-                  <span className="font-bold">
+                  <span className="text-gray-600">Total Amount:</span>
+                  <span className="font-bold text-lg">
                     SAR {calculateTotal(selectedTicket, selectedSeats.length)}
                   </span>
                 </div>
+
                 <button
                   onClick={handleProceedToPayment}
                   disabled={loading || selectedSeats.length !== parseInt(searchParams.passengers || 1)}
@@ -222,7 +372,10 @@ const Tickets = () => {
                     }`}
                 >
                   {loading ? (
-                    <Loader className="w-5 h-5 animate-spin" />
+                    <>
+                      <Loader className="w-5 h-5 animate-spin" />
+                      <span>Processing...</span>
+                    </>
                   ) : (
                     <>
                       <CreditCard className="w-5 h-5" />

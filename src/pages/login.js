@@ -20,49 +20,66 @@ const LoginComponent = () => {
     setError('');
 
     try {
-      const { data: users, error: userError } = await supabase
+      // Query the users table
+      const { data: user, error: userError } = await supabase
         .from('users')
-        .select('id, email, password_hash, role')
+        .select('*')
         .eq('email', email)
         .single();
 
-      if (userError || !users) {
-        throw new Error('Invalid email or password.');
+      if (userError) {
+        console.error('Database error:', userError);
+        throw new Error('Error finding user account.');
       }
 
-      const passwordMatch = await bcrypt.compare(password, users.password_hash);
+      if (!user) {
+        throw new Error('No user found with this email.');
+      }
+
+      // Verify password
+      const passwordMatch = await bcrypt.compare(password, user.password_hash);
+
       if (!passwordMatch) {
-        throw new Error('Invalid email or password.');
+        throw new Error('Invalid password.');
       }
 
-      login(users);
+      // Store user data in context
+      login({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        name: user.name
+      });
 
-      // Check if we were trying to book tickets
-      if (location.state?.from === '/paymentpage') {
-        // Redirect to tickets page with the search results
-        navigate('/tickets', { 
-          state: {
-            searchResults: location.state.searchResults,
-            searchParams: {
-              destination: location.state.bookingData?.searchParams?.destination,
-              date: location.state.bookingData?.searchParams?.date,
-              passengers: location.state.bookingData?.searchParams?.passengers
-            }
-          }
-        });
+      // Navigate based on role and previous location
+      if (user.role.toLowerCase() === 'admin') {
+        navigate('/admin');
       } else {
-        // Otherwise, redirect to the saved location or home
-        navigate(location.state?.from || '/');
+        // For passengers
+        if (location.state?.from === '/paymentpage') {
+          // If they were trying to make a payment, send them back to tickets
+          navigate('/tickets', { 
+            state: {
+              searchResults: location.state.searchResults,
+              searchParams: location.state.bookingData?.searchParams
+            }
+          });
+        } else if (location.state?.from) {
+          // If they were trying to access a specific page, send them there
+          navigate(location.state.from);
+        } else {
+          // Default: send passengers to home page
+          navigate('/');
+        }
       }
 
     } catch (err) {
-      console.error('Login error:', err.message);
-      setError(err.message);
+      console.error('Login error:', err);
+      setError(err.message || 'An error occurred during login.');
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
