@@ -1,194 +1,241 @@
 import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Mail, Lock, User, AlertCircle, Loader } from 'lucide-react';
 import supabase from '../config/supabaseClient';
-import { Link } from 'react-router-dom';
-import { v4 as uuidv4 } from 'uuid'; // For generating unique session IDs and tokens
-import bcrypt from 'bcryptjs'; // For password hashing
+import bcrypt from 'bcryptjs';
 
-const SignUpForm = () => {
+const SignUpComponent = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    Fname: '',
-    Lname: '',
-    authority: 'Passenger', // Default to 'Passenger'
+    confirmPassword: '',
+    firstName: '',
+    lastName: '',
   });
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const validateForm = () => {
+    if (!formData.email || !formData.password || !formData.firstName || !formData.lastName) {
+      setError('All fields are required');
+      return false;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return false;
+    }
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Check if all fields are filled
-    if (!formData.email || !formData.password || !formData.Fname || !formData.Lname) {
-      setErrorMessage('Please fill in all fields.');
-      setTimeout(() => {
-        setErrorMessage('');
-      }, 3000);
-      return;
-    }
+    if (!validateForm()) return;
+    
+    setLoading(true);
+    setError('');
 
     try {
-      // Step 1: Hash the password
+      // Check if email already exists
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('email')
+        .eq('email', formData.email)
+        .single();
+
+      if (existingUser) {
+        throw new Error('Email already registered');
+      }
+
+      // Hash password
       const hashedPassword = await bcrypt.hash(formData.password, 10);
 
-      // Step 2: Insert the user into the database
-      const { data: user, error: userError } = await supabase
+      // Create user
+      const { error: signUpError } = await supabase
         .from('users')
         .insert([{
           email: formData.email,
-          password_hash: hashedPassword, // Store hashed password
-          name: `${formData.Fname} ${formData.Lname}`,
-          role: formData.authority, // Default to 'Passenger'
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }])
-        .select()
-        .single();
-
-      if (userError) {
-        throw userError;
-      }
-
-      // Step 3: Create a session for the user
-      const sessionID = uuidv4(); // Unique session ID
-      const token = uuidv4(); // Generate a random token
-      const expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + 1); // Token expires in 1 hour
-
-      const { error: sessionError } = await supabase
-        .from('sessions')
-        .insert([{
-          user_id: user.id, // Reference the newly created user
-          session_id: sessionID,
-          expires_at: expiresAt.toISOString(),
-          is_active: true,
-          user_agent: navigator.userAgent, // Browser info
-          ip_address: '127.0.0.1', // For demonstration purposes, use the actual IP address in a production app
+          password_hash: hashedPassword,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          role: 'passenger',
+          created_at: new Date().toISOString()
         }]);
 
-      if (sessionError) {
-        throw sessionError;
-      }
+      if (signUpError) throw signUpError;
 
-      // Save token and sessionID to localStorage (or cookies for better security)
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('sessionID', sessionID);
-
-      // Reset form data
-      setFormData({
-        email: '',
-        password: '',
-        Fname: '',
-        Lname: '',
-        authority: 'Passenger', // Default to 'Passenger'
+      // Redirect to login with success message
+      navigate('/login', {
+        state: { message: 'Account created successfully. Please sign in.' }
       });
 
-      // Show success message
-      setSuccessMessage('Account created successfully. Token and session saved.');
-      setTimeout(() => {
-        setSuccessMessage('');
-      }, 3000);
-
-    } catch (error) {
-      console.error('Error signing up:', error.message);
-      setErrorMessage('Failed to sign up. Please try again.');
-      setTimeout(() => {
-        setErrorMessage('');
-      }, 3000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div>
-      <div className="flex justify-between px-3 items-center border-b-2 border-gray-300">
-        <Link to="/" className="flex items-center cursor-pointer">
-          <img className="w-14" src="img/train.jpg" alt="website-logo" />
-          <span className="font-bold px-0">TSM</span>
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <Link to="/" className="flex justify-center items-center mb-6">
+          <img className="h-12 w-auto" src="/img/train.jpg" alt="TSM" />
         </Link>
-        <div>
-          <h1 className="font-bold">Welcome to TSM</h1>
-        </div>
-        <nav>
-          <Link
-            to="/login"
-            className="bg-white text-gray-800 border-2 rounded-full border-gray-800 p-2 transition ease-out hover:scale-105 hover:bg-gray-800 hover:text-white"
-          >
-            Sign in
-          </Link>
-        </nav>
+        <h2 className="text-center text-3xl font-extrabold text-gray-900">
+          Create your account
+        </h2>
       </div>
-      <main className="py-20 flex justify-center items-center text-center">
-        <div className="flex flex-col w-[600px]">
-          <div className="bg-gray-800 rounded shadow-md p-10 mb-2">
-            <div className="pb-5 font-bold text-lg text-white">Create a new Account</div>
-            <form onSubmit={handleSubmit}>
-              <div className="text-left">
-                <div className="flex justify-center items-center m-2">
+
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  First Name
+                </label>
+                <div className="mt-1 relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
                     type="text"
-                    id="Fname"
-                    name="Fname"
-                    value={formData.Fname}
+                    name="firstName"
+                    value={formData.firstName}
                     onChange={handleChange}
-                    placeholder="First Name"
-                    className="bg-white rounded text-black text-sm md:text-base h-10 md:h-12 px-2 ml-2 mr-2 shadow-md w-full"
-                  />
-                  <input
-                    type="text"
-                    id="Lname"
-                    name="Lname"
-                    value={formData.Lname}
-                    onChange={handleChange}
-                    placeholder="Last Name"
-                    className="bg-white rounded text-black text-sm md:text-base h-10 md:h-12 px-2 ml-2 shadow-md w-full"
+                    required
+                    className="pl-10 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Last Name
+                </label>
+                <div className="mt-1 relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    required
+                    className="pl-10 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Email address
+              </label>
+              <div className="mt-1 relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="bg-white rounded text-black h-10 px-2 ml-2 shadow-md w-full"
-                  placeholder="Enter your email"
+                  required
+                  className="pl-10 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <div className="mt-1 relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="password"
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  className="bg-white rounded text-black h-10 px-2 ml-2 shadow-md w-full"
-                  placeholder="Enter your password"
+                  required
+                  className="pl-10 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
-                <select
-                  name="authority"
-                  value={formData.authority}
-                  onChange={handleChange}
-                  className="bg-white rounded text-black text-sm mt-2 px-2 ml-2 w-full"
-                >
-                  <option value="Passenger">Passenger</option>
-                  <option value="Admin">Admin</option>
-                  <option value="Staff">Staff</option>
-                </select>
               </div>
-              <button
-                type="submit"
-                className="bg-white text-black inline-flex items-center h-12 w-full rounded mt-4 mb-3 hover:bg-gray-800 hover:text-white"
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Confirm Password
+              </label>
+              <div className="mt-1 relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                  className="pl-10 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="flex items-center space-x-2 text-red-600">
+                <AlertCircle className="w-5 h-5" />
+                <p className="text-sm">{error}</p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white 
+                ${loading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'} 
+                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+            >
+              {loading ? (
+                <Loader className="w-5 h-5 animate-spin" />
+              ) : (
+                'Create Account'
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">
+                  Already have an account?
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <Link
+                to="/login"
+                className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
               >
-                Create Account
-              </button>
-            </form>
-            {successMessage && <div className="text-green-500">{successMessage}</div>}
-            {errorMessage && <div className="text-red-500">{errorMessage}</div>}
+                Sign in instead
+              </Link>
+            </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 };
 
-export default SignUpForm;
+export default SignUpComponent;

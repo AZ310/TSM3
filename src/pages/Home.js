@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import supabase from '../config/supabaseClient';
-import { useAuth } from './AuthContext'; // Import useAuth hook
+import { useAuth } from '../context/AuthContext';
+import { Search, AlertCircle, Calendar, Users, Loader } from 'lucide-react';
+import Navbar from '../components/layout/Navbar';
 
 const HomeComponent = () => {
-  const [searchResults, setSearchResults] = useState([]);
   const [searchError, setSearchError] = useState('');
-
-  const { user, logout } = useAuth(); // Get user and logout function from AuthContext
+  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -21,11 +22,15 @@ const HomeComponent = () => {
 
   const handleSearchFlights = async (e) => {
     e.preventDefault();
+    setLoading(true);
     const formData = new FormData(e.target);
-    const searchQuery = formData.get('search').trim(); // Normalize input
+    const searchQuery = formData.get('search').trim();
+    const date = formData.get('date');
+    const passengers = formData.get('passengers');
 
     if (!searchQuery) {
       setSearchError('Please enter a destination');
+      setLoading(false);
       return;
     }
 
@@ -40,128 +45,153 @@ const HomeComponent = () => {
           departure_time,
           arrival_time
         `)
-        .ilike('destination_station', `%${searchQuery}%`); // Case-insensitive search
+        .ilike('destination_station', `%${searchQuery}%`);
 
       if (error) throw error;
 
       if (data && data.length > 0) {
-        setSearchResults(data);
-        setSearchError('');
-        navigate('/tickets', { state: { searchResults: data } });
+        navigate('/tickets', { 
+          state: { 
+            searchResults: data,
+            searchParams: {
+              destination: searchQuery,
+              date: date,
+              passengers: passengers || "1"
+            }
+          } 
+        });
       } else {
         setSearchError('No tickets available for the entered destination.');
       }
     } catch (error) {
       console.error('Error searching tickets:', error);
       setSearchError(`An error occurred: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    logout(); // Call logout from AuthContext
-    supabase.auth.signOut(); // Sign out the user from Supabase
-    navigate('/login'); // Redirect user to the login page after logout
-  };
-
   return (
-    <div>
-      <div className="flex justify-between px-3 items-center border-b-2 border-gray-300">
-        <Link to="/" className="flex items-center cursor-pointer">
-          <img className="w-6" src="img/train.jpg" alt="website-logo" />
-          <span className="font-bold px-0">TSM</span>
-        </Link>
-        <div>
-          <h1 className="font-bold">Welcome to TSM</h1>
-        </div>
-        <nav className="flex justify-start items-center">
-          <div className="mr-3 pr-3 border-r border-gray-800">
-            <a
-              className="bg-white text-gray-800 border-2 rounded-full border-gray-800 p-2 transition ease-out hover:scale-105 hover:bg-gray-800 hover:text-white"
-              href="recent"
-            >
-              Recent Tickets
-            </a>
+    <div className="min-h-screen flex flex-col">
+      <Navbar />
+
+      {/* Hero Section */}
+      <main className="flex-grow">
+        <div className="relative h-[600px]">
+          {/* Background Image */}
+          <div className="absolute inset-0">
+            <img
+              src="/img/Train background.webp"
+              alt="Train station"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-black bg-opacity-50"></div>
           </div>
-          {!user ? (
-            <>
-              <a
-                href="login"
-                className="bg-white text-gray-800 border-2 rounded-full border-gray-800 p-2 transition ease-out hover:scale-105 hover:bg-gray-800 hover:text-white"
-              >
-                Sign in
-              </a>
-              <a
-                href="signup"
-                className="bg-white text-gray-800 border-2 rounded-full border-gray-800 p-2 transition ease-out hover:scale-105 hover:bg-gray-800 hover:text-white"
-              >
-                Sign up
-              </a>
-            </>
-          ) : (
-            <div>
-              <p>Welcome, {user.email}</p>
-              <button
-                onClick={handleLogout}
-                className="bg-red-500 text-white px-4 py-2 rounded"
-              >
-                Log Out
-              </button>
-            </div>
-          )}
-        </nav>
-      </div>
 
-      <main className="relative">
-        <div className="w-[1700px] h-[700px] relative overflow-hidden">
-          <div className="container mx-auto px-4 h-full relative">
-            <div className="w-[80%] h-full mx-auto relative">
-              <img
-                src="img/Train background.webp"
-                alt="High-speed train"
-                className="w-full h-full object-cover rounded-lg"
-                style={{
-                  objectPosition: 'center 50%',
-                  maxWidth: '1200px',
-                  margin: '0 auto',
-                }}
-              />
-              <div className="absolute inset-0 flex flex-col justify-center">
-                <h1 className="text-6xl font-bold text-[#D9E3F0] mb-4 ml-8">
-                  Travel Anywhere
-                </h1>
-                <p className="text-white text-xl mb-8 ml-8 px-2">
-                  Anytime!
-                </p>
+          {/* Search Container */}
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
+            <div className="flex flex-col justify-center items-center h-full text-center">
+              <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
+                Travel Anywhere, Anytime
+              </h1>
+              <p className="text-xl text-white mb-8">
+                Book your train tickets with ease
+              </p>
 
-                <div className="px-8">
-                  <form onSubmit={handleSearchFlights} className="max-w-2xl">
-                    <div className="flex bg-white rounded-lg overflow-hidden shadow-lg">
+              {/* Search Form */}
+              <div className="w-full max-w-3xl bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-6">
+                <form onSubmit={handleSearchFlights} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Destination Input */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-3 text-gray-400" />
                       <input
                         type="text"
                         name="search"
-                        placeholder="Where do you want to go?"
-                        className="flex-grow px-4 py-2 text-lg focus:outline-none"
+                        placeholder="Where to?"
+                        disabled={loading}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
                       />
-                      <button
-                        type="submit"
-                        className="bg-[#0057B8] text-white px-6 py-2 text-lg font-semibold hover:bg-[#004494] transition-colors"
-                      >
-                        Find tickets
-                      </button>
                     </div>
-                  </form>
-                </div>
+
+                    {/* Date Input */}
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-3 text-gray-400" />
+                      <input
+                        type="date"
+                        name="date"
+                        disabled={loading}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      />
+                    </div>
+
+                    {/* Passengers Input */}
+                    <div className="relative">
+                      <Users className="absolute left-3 top-3 text-gray-400" />
+                      <select
+                        name="passengers"
+                        defaultValue="1"
+                        disabled={loading}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      >
+                        <option value="1">1 Passenger</option>
+                        <option value="2">2 Passengers</option>
+                        <option value="3">3 Passengers</option>
+                        <option value="4">4 Passengers</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className={`w-full md:w-auto px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
+                      transition-colors flex items-center justify-center space-x-2 disabled:bg-blue-400 disabled:cursor-not-allowed`}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader className="w-5 h-5 animate-spin" />
+                        <span>Searching...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Search className="w-5 h-5" />
+                        <span>Search Tickets</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Features Section */}
+        <div className="bg-gray-50 py-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="bg-white p-6 rounded-xl shadow-sm">
+                <h3 className="text-xl font-semibold mb-2">Fast Booking</h3>
+                <p className="text-gray-600">Book your tickets in minutes with our streamlined process</p>
+              </div>
+              <div className="bg-white p-6 rounded-xl shadow-sm">
+                <h3 className="text-xl font-semibold mb-2">Secure Payments</h3>
+                <p className="text-gray-600">Safe and secure payment options for your peace of mind</p>
+              </div>
+              <div className="bg-white p-6 rounded-xl shadow-sm">
+                <h3 className="text-xl font-semibold mb-2">24/7 Support</h3>
+                <p className="text-gray-600">Round-the-clock customer support for all your needs</p>
               </div>
             </div>
           </div>
         </div>
       </main>
 
+      {/* Error Toast */}
       {searchError && (
-        <div className="fixed bottom-4 right-4 max-w-md animate-fade-in">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded shadow-lg">
-            {searchError}
-          </div>
+        <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2 animate-fade-in">
+          <AlertCircle className="w-5 h-5" />
+          <p>{searchError}</p>
         </div>
       )}
     </div>
